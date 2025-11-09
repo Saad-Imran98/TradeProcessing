@@ -1,18 +1,20 @@
 package com.trade.tradeprocessing.models;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.Setter;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 
+@Getter
+@Setter
 @Entity
 @Table(name = "trades")
 public class Trade {
     @Id
-    private String tradeId;
+    @GeneratedValue(strategy= GenerationType.AUTO)
+    private Long id;
     private LocalDate tradeDate;
     private String instrument;
     private String side; // "BUY"/"SELL"
@@ -20,7 +22,6 @@ public class Trade {
     private BigDecimal price;
     private String currency;
     private String counterparty;
-    private String status; // PENDING, PROCESSED, REJECTED
+    private String status;
     private Instant createdAt;
-    // getters/setters, equals/hashCode
 }
