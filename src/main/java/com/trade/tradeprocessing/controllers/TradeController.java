@@ -16,8 +16,11 @@ import java.util.List;
 @RestController
 public class TradeController {
 
-    @Autowired
-    TradeService tradeService;
+    private TradeService tradeService;
+
+    public TradeController(@Autowired TradeService tradeService) {
+        this.tradeService = tradeService;
+    }
 
     @GetMapping("/get")
     List<Trade> getTrades(){
