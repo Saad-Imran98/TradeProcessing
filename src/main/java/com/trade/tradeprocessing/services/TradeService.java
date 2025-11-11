@@ -5,7 +5,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.trade.tradeprocessing.models.Trade;
 
-import java.time.LocalDate;
 import java.util.List;
 
 @Service

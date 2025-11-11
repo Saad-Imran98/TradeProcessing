@@ -1,8 +1,8 @@
 package com.trade.tradeprocessing.models;
 
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
+
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -10,6 +10,9 @@ import java.time.LocalDate;
 @Getter
 @Setter
 @Entity
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
 @Table(name = "trades")
 public class Trade {
     @Id
@@ -24,4 +27,5 @@ public class Trade {
     private String counterparty;
     private String status;
     private Instant createdAt;
+    private Instant timeProcessed;
 }

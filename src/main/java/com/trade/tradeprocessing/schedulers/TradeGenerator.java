@@ -1,0 +1,48 @@
+package com.trade.tradeprocessing.schedulers;
+
+import com.trade.tradeprocessing.events.TradeReceivedEvent;
+import com.trade.tradeprocessing.models.Trade;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+
+import java.time.LocalDate;
+import java.util.Date;
+import java.util.Random;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+@Component
+public class TradeGenerator {
+
+    private static final Logger logger = LoggerFactory.getLogger(TradeGenerator.class);
+    private final String[] instruments = {"AAPL", "GOOGL", "MSFT", "AMZN", "TSLA", "FB", "NFLX", "NVDA", "BABA", "INTC"};
+    private final String[] counterParties = {"JP Morgan", "Goldman Sachs", "Morgan Stanley", "Citibank", "Bank of America"};
+    private final String[] currencies = {"USD", "EUR", "GBP", "JPY", "AUD"};
+    private final ApplicationEventPublisher eventPublisher;
+
+    public TradeGenerator(@Autowired ApplicationEventPublisher eventPublisher) {
+        this.eventPublisher = eventPublisher;
+    }
+
+    public Trade createRandomTrade(){
+        return Trade.builder()
+                .tradeDate(LocalDate.now())
+                .counterparty(counterParties[new Random().nextInt(counterParties.length)])
+                .createdAt(new Date().toInstant())
+                .currency(currencies[new Random().nextInt(currencies.length)])
+                .side(new Random().nextBoolean() ? "BUY" : "SELL")
+                .quantity(new java.math.BigDecimal(new Random().nextInt(10000)))
+                .price(new java.math.BigDecimal(new Random().nextInt(500)))
+                .instrument(instruments[new Random().nextInt(instruments.length)])
+                .build();
+    }
+
+    @Scheduled(initialDelay = 100, fixedRate = 5000) // every 5 seconds
+    public void pushRandomTrade() {
+        Trade randomTrade = createRandomTrade();
+        eventPublisher.publishEvent(new TradeReceivedEvent(this, randomTrade));
+        logger.info("Trade received: " + randomTrade);
+    }
+}
