@@ -4,6 +4,7 @@ import com.trade.tradeprocessing.repositories.TradeRepository;
 import org.springframework.stereotype.Service;
 import com.trade.tradeprocessing.models.Trade;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Service
