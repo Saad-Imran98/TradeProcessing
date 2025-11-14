@@ -1,10 +1,7 @@
 package com.trade.tradeprocessing.schedulers;
 
-import com.trade.tradeprocessing.events.TradeReceivedEvent;
 import com.trade.tradeprocessing.models.Status;
 import com.trade.tradeprocessing.models.Trade;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -23,11 +20,9 @@ public class TradeGenerator {
     private final String[] instruments = {"AAPL", "GOOGL", "MSFT", "AMZN", "TSLA", "FB", "NFLX", "NVDA", "BABA", "INTC"};
     private final String[] counterParties = {"JP Morgan", "Goldman Sachs", "Morgan Stanley", "Citibank", "Bank of America"};
     private final String[] currencies = {"USD", "EUR", "GBP", "JPY", "AUD"};
-    private final ApplicationEventPublisher eventPublisher;
-    private BlockingQueue<Trade> tradeQueue;
+    private final BlockingQueue<Trade> tradeQueue;
 
-    public TradeGenerator(@Autowired ApplicationEventPublisher eventPublisher, @Autowired BlockingQueue<Trade> tradeQueue) {
-        this.eventPublisher = eventPublisher;
+    public TradeGenerator(BlockingQueue<Trade> tradeQueue) {
         this.tradeQueue = tradeQueue;
     }
 
@@ -45,12 +40,12 @@ public class TradeGenerator {
                 .build();
     }
 
-    @Scheduled(initialDelay = 100, fixedRate = 5000) // every 5 seconds
-    public void pushRandomTrade() throws InterruptedException {
+    @Scheduled(initialDelay = 100, fixedRate = 250) // every 5 seconds
+    public void pushRandomTrade() {
         Trade randomTrade = createRandomTrade();
         try {
             tradeQueue.put(randomTrade);
-            logger.info("PRODUCER: Trade ID " + randomTrade.getId() + " pushed to queue.");
+            logger.debug("PRODUCER: Trade ID " + randomTrade.getId() + " pushed to queue.");
         } catch (InterruptedException e) {
             logger.error("Failed to enqueue trade: " + e.getMessage());
             Thread.currentThread().interrupt();
