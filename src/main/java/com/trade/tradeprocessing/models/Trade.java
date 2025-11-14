@@ -28,4 +28,5 @@ public class Trade {
     private String status;
     private Instant createdAt;
     private Instant timeProcessed;
+    private BigDecimal notionalUsd;
 }
