@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Service
@@ -23,13 +24,19 @@ public class TradeProcessingService {
     private final BlockingQueue<Trade> tradeQueue;
     private final TaskExecutor tradeProcessingExecutor;
     private final AtomicLong processedCount = new AtomicLong(0);
+    private final AtomicLong totalProcessingTimeNs = new AtomicLong(0);
     private long startTime;
+    private MarketDataService marketDataService;
 
-    TradeProcessingService(TradeRepository tradeRepository, BlockingQueue<Trade> tradeQueue, TaskExecutor tradeProcessingExecutor) {
+    TradeProcessingService(TradeRepository tradeRepository,
+                           BlockingQueue<Trade> tradeQueue,
+                           TaskExecutor tradeProcessingExecutor,
+                           MarketDataService marketDataService) {
         log = LoggerFactory.getLogger(TradeProcessingService.class);
         this.tradeRepository = tradeRepository;
         this.tradeQueue = tradeQueue;
         this.tradeProcessingExecutor = tradeProcessingExecutor;
+        this.marketDataService = marketDataService;
     }
 
     // Starts the worker threads when the application starts
@@ -53,7 +60,7 @@ public class TradeProcessingService {
         while (!Thread.currentThread().isInterrupted()) {
             try {
                 // Wait for 10 seconds
-                Thread.sleep(10000);
+                Thread.sleep(30000);
 
                 long duration = System.currentTimeMillis() - startTime;
                 if (duration > 0) {
@@ -89,6 +96,7 @@ public class TradeProcessingService {
                 long latencyNs = latencyEnd - latencyStart;
 
                 // Log and update metrics
+                totalProcessingTimeNs.addAndGet(latencyNs); // <--- RECORD TIME
                 log.debug("Processed Trade ID {} in {} nanoseconds.", trade.getId(), latencyNs);
                 processedCount.incrementAndGet();
 
@@ -110,7 +118,7 @@ public class TradeProcessingService {
     }
 
     public void processTradePipeline(Trade pendingTrade) {
-        log.info("START Processing Trade ID: {} by thread {}", pendingTrade.getId(), Thread.currentThread().getName());
+        log.debug("START Processing Trade ID: {} by thread {}", pendingTrade.getId(), Thread.currentThread().getName());
         pendingTrade.setStatus(Status.Processing);
         tradeRepository.save(pendingTrade);
 
@@ -123,9 +131,45 @@ public class TradeProcessingService {
             return;
         }
 
+        // --- ASYNCHRONOUS ENRICHMENT STAGE ---
+        try {
+            // 3. Kick off the asynchronous FX rate fetch
+            CompletableFuture<BigDecimal> fxFuture = marketDataService.getFxRateAsync("EURUSD");
+
+            // Wait for the result from the async thread.
+            // This is the point where the consumer thread waits for the background task to complete.
+            BigDecimal fxRate = fxFuture.get();
+
+            // Calculate and enrich
+            enrichTrade(pendingTrade, fxRate);
+
+        } catch (Exception e) {
+            log.error("Trade ID {} FAILED during ASYNC enrichment: {}", pendingTrade.getId(), e.getMessage());
+            // Optionally: set status to FAILED and persist
+            pendingTrade.setStatus("FAILED");
+            tradeRepository.save(pendingTrade);
+            return;
+        }
+
         pendingTrade.setStatus(Status.Done);
         pendingTrade.setTimeProcessed(Instant.now());
         tradeRepository.save(pendingTrade);
-        log.info("FINISH Processing Trade ID: {} with status PROCESSED.", pendingTrade.getId());
     }
+
+    /**
+     * Performs the required enrichment calculation: notionalUsd = quantity × price × fxRate
+     */
+    private void enrichTrade(Trade trade, BigDecimal fxRate) {
+        // Placeholder currency pair since the Trade object doesn't have it yet.
+        // In a real system, this would be based on the trade's currency.
+
+        // notionalUsd = quantity × price × fxRate
+        BigDecimal notional = trade.getQuantity()
+                .multiply(trade.getPrice())
+                .multiply(fxRate)
+                .setScale(2, 0); // Round to 2 decimal places for USD
+
+        trade.setNotionalUsd(notional);
+    }
+
 }
